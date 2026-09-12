@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pepito Plus — Consola de búsqueda</title>
+<style>
+  :root {
+    --bg: #101a1e;
+    --panel: #17262a;
+    --panel-alt: #203338;
+    --border: #315057;
+    --text: #edf5f2;
+    --text-muted: #9db1ae;
+    --accent: #70d6b5;
+    --positivo: #4fd1c5;
+    --neutro: #c9a24b;
+    --negativo: #e2665a;
+    --nodet: #6b7385;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --sans: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  }
+  .layout { display: flex; min-height: 100vh; }
+  nav {
+    width: 250px; flex-shrink: 0; background: var(--panel);
+    border-right: 1px solid var(--border); padding: 24px 0;
+  }
+  nav .marca {
+    padding: 0 20px 20px; font-weight: 600; font-size: 15px;
+    border-bottom: 1px solid var(--border); margin-bottom: 12px;
+  }
+  nav .marca span { color: var(--text-muted); font-weight: 400; display: block; font-size: 12px; margin-top: 2px; }
+  nav button {
+    display: block; width: 100%; text-align: left; padding: 10px 20px;
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 13.5px; border-left: 2px solid transparent;
+  }
+  nav button:hover { color: var(--text); background: var(--panel-alt); }
+  nav button.activo { color: var(--accent); border-left-color: var(--accent); background: var(--panel-alt); }
+  nav .pasos { padding: 0 20px 12px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+  nav .paso-numero { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border: 1px solid currentColor; border-radius: 50%; font-size: 11px; }
+
+  main { flex: 1; padding: 38px 48px; max-width: 1180px; }
+  h1 { font-size: 28px; margin: 0 0 7px; font-weight: 700; letter-spacing: 0; }
+  .subtitulo { color: var(--text-muted); margin: 0 0 28px; font-size: 15px; max-width: 720px; }
+  .intro { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(220px, .8fr); gap: 18px; margin-bottom: 24px; }
+  .intro-text, .guia { padding: 20px; border: 1px solid var(--border); border-radius: 8px; background: linear-gradient(135deg, var(--panel), #1c3133); }
+  .intro-text h2, .guia h2 { margin: 0 0 8px; font-size: 17px; }
+  .intro-text p, .guia p { margin: 0; color: var(--text-muted); }
+  .guia strong { color: var(--text); }
+  section.vista { display: none; }
+  section.vista.activa { display: block; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 22px; margin-bottom: 20px;
+  }
+  .panel h2 { font-size: 16px; margin: 0 0 6px; font-weight: 600; color: var(--text); text-transform: none; }
+  .panel .ayuda { color: var(--text-muted); margin: 0 0 17px; font-size: 13px; }
+
+  .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .campo { display: flex; flex-direction: column; gap: 4px; }
+  .campo.full { grid-column: 1 / -1; }
+  label { font-size: 12.5px; color: var(--text-muted); }
+  label .req { color: var(--negativo); }
+  input, select {
+    background: var(--panel-alt); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 10px; border-radius: 4px; font-size: 13.5px; font-family: var(--sans);
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+  button.primario {
+    background: var(--accent); color: #0b1117; border: none; font-weight: 600;
+    padding: 9px 16px; border-radius: 4px; cursor: pointer; font-size: 13.5px; margin-top: 14px;
+  }
+  button.primario:hover { opacity: 0.9; }
+  button.secundario {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--text-muted); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  td.url { font-family: var(--mono); font-size: 12px; color: var(--text-muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-family: var(--mono); }
+  .badge.POSITIVO { background: rgba(79,209,197,.15); color: var(--positivo); }
+  .badge.NEUTRO { background: rgba(201,162,75,.15); color: var(--neutro); }
+  .badge.NEGATIVO { background: rgba(226,102,90,.15); color: var(--negativo); }
+  .badge.NO_DETERMINADO { background: rgba(107,115,133,.2); color: var(--nodet); }
+  .badge.activa { background: rgba(79,209,197,.15); color: var(--positivo); }
+  .badge.inactiva { background: rgba(107,115,133,.2); color: var(--nodet); }
+
+  .filtros { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filtros select, .filtros input { min-width: 150px; }
+
+  .vacio { color: var(--text-muted); font-size: 13px; padding: 20px 0; text-align: center; }
+  .mensaje { font-size: 13px; padding: 10px 12px; border-radius: 4px; margin-top: 12px; display: none; }
+  .mensaje.ok { background: rgba(79,209,197,.12); color: var(--positivo); display: block; }
+  .mensaje.error { background: rgba(226,102,90,.12); color: var(--negativo); display: block; }
+
+  .selector-persona { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .selector-persona select { flex: 1; }
+  .leyenda { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 12px 0 2px; color: var(--text-muted); font-size: 12px; }
+  .leyenda-item { display: inline-flex; align-items: center; gap: 6px; }
+  .leyenda .badge { font-size: 10px; }
+  .tabla-contenedor { overflow-x: auto; }
+  @media (max-width: 760px) {
+    .layout { display: block; }
+    nav { width: 100%; padding: 14px 0 8px; border-right: 0; border-bottom: 1px solid var(--border); }
+    nav button { display: inline-block; width: auto; padding: 9px 12px; font-size: 12px; border-left: 0; border-bottom: 2px solid transparent; }
+    nav button.activo { border-bottom-color: var(--accent); }
+    nav .pasos { display: none; }
+    main { padding: 25px 16px; }
+    .intro { grid-template-columns: 1fr; }
+    .grid-form { grid-template-columns: 1fr; }
+    .campo.full { grid-column: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav>
+    <div class="marca">Pepito Plus<span>Analiza información pública</span></div>
+    <div class="pasos">Sigue estos pasos para obtener resultados sobre una persona.</div>
+    <button data-vista="personas" class="activo"><span class="paso-numero">1</span>Registrar persona</button>
+    <button data-vista="fuentes"><span class="paso-numero">2</span>Configurar fuentes</button>
+    <button data-vista="busquedas"><span class="paso-numero">3</span>Iniciar búsqueda</button>
+    <button data-vista="resultados"><span class="paso-numero">4</span>Revisar resultados</button>
+  </nav>
+
+  <main>
+    <!-- RF1 -->
+    <section class="vista activa" id="vista-personas">
+      <h1>Registrar persona</h1>
+      <p class="subtitulo">Primero indica a quién quieres consultar. Estos datos ayudan a encontrar menciones y a distinguir a esa persona de otras con nombres parecidos.</p>
+
+    
+
+      <div class="panel">
+        <h2>Datos de la persona</h2>
+        <p class="ayuda">El nombre y el país son obligatorios. Los demás datos mejoran la precisión de la búsqueda.</p>
+        <form id="form-persona">
+          <div class="grid-form">
+            <div class="campo full">
+              <label>Nombre completo de la persona <span class="req">*</span></label>
+              <input name="nombre_completo" required>
+            </div>
+            <div class="campo">
+              <label>País donde se ubica <span class="req">*</span></label>
+              <input name="pais" required placeholder="Colombia">
+            </div>
+            <div class="campo">
+              <label>Ciudad</label>
+              <input name="ciudad">
+            </div>
+            <div class="campo">
+              <label>Profesión o cargo</label>
+              <input name="profesion_cargo">
+            </div>
+            <div class="campo">
+              <label>Empresa u organización</label>
+              <input name="empresa_organizacion">
+            </div>
+            <div class="campo">
+              <label>Alias o nombres alternativos <span class="ayuda">(separados por coma)</span></label>
+              <input name="alias">
+            </div>
+            <div class="campo full">
+              <label>Palabras para encontrarla <span class="ayuda">(separadas por coma)</span></label>
+              <input name="palabras_relacionadas">
+            </div>
+          </div>
+          <button type="submit" class="primario">Guardar persona y continuar</button>
+          <div class="mensaje" id="msg-persona"></div>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Personas listas para consultar</h2>
+        <p class="ayuda">Selecciona una de estas personas cuando inicies una búsqueda.</p>
+        <table>
+          <thead><tr><th>Nombre</th><th>País</th><th>Ciudad</th><th>Profesión</th></tr></thead>
+          <tbody id="tabla-personas"><tr><td colspan="4" class="vacio">Sin registros aún</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- RF2 -->
+    <section class="vista" id="vista-fuentes">
+      <h1>Configurar fuentes</h1>
+      <p class="subtitulo">Registra los sitios públicos que el sistema puede consultar. Solo se utilizarán las fuentes activas del país elegido.</p>
+
+      <div class="panel">
+        <h2>Agregar sitio de consulta</h2>
+        <p class="ayuda">Una fuente necesita un nombre, una URL inicial y el país al que corresponde.</p>
+        <form id="form-fuente">
+          <div class="grid-form">
+            <div class="campo full">
+              <label>Nombre <span class="req">*</span></label>
+              <input name="nombre" required>
+            </div>
+            <div class="campo full">
+              <label>Dirección del sitio (URL inicial) <span class="req">*</span></label>
+              <input name="url_inicial" required placeholder="https://ejemplo.com">
+            </div>
+            <div class="campo">
+              <label>País <span class="req">*</span></label>
+              <input name="pais" required placeholder="Colombia">
+            </div>
+            <div class="campo">
+              <label>Tipo</label>
+              <select name="tipo">
+                <option value="NOTICIAS">Noticias</option>
+                <option value="RED_SOCIAL">Red social</option>
+                <option value="BLOG">Blog</option>
+                <option value="DIRECTORIO_PUBLICO">Directorio público</option>
+                <option value="OTRO">Otro</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="primario">Guardar fuente</button>
+          <div class="mensaje" id="msg-fuente"></div>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Fuentes disponibles</h2>
+        <p class="ayuda">Las fuentes activas participan en las búsquedas. Puedes desactivarlas sin eliminarlas.</p>
+        <table>
+          <thead><tr><th>Nombre</th><th>URL inicial</th><th>País</th><th>Tipo</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="tabla-fuentes"><tr><td colspan="6" class="vacio">Sin fuentes aún</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Disparar busqueda -->
+    <section class="vista" id="vista-busquedas">
+      <h1>Iniciar búsqueda</h1>
+      <p class="subtitulo">El sistema visitará las fuentes activas, buscará menciones de la persona y analizará cada contenido encontrado.</p>
+
+      <div class="panel">
+        <h2>Define la consulta</h2>
+        <p class="ayuda">Elige una persona y un país que tenga fuentes activas. La búsqueda se ejecutará en segundo plano.</p>
+        <form id="form-busqueda">
+          <div class="grid-form">
+            <div class="campo full">
+              <label>Persona que quieres consultar <span class="req">*</span></label>
+              <select name="persona_id" id="select-persona-busqueda" required></select>
+            </div>
+            <div class="campo">
+              <label>País de las fuentes <span class="req">*</span></label>
+              <input name="pais" required placeholder="Colombia">
+            </div>
+            <div class="campo">
+              <label>Procesos simultáneos</label>
+              <input name="num_workers" type="number" value="4" min="1" max="32">
+            </div>
+          </div>
+          <button type="submit" class="primario">Iniciar análisis</button>
+          <div class="mensaje" id="msg-busqueda"></div>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Historial de consultas</h2>
+        <p class="ayuda">Cuando una búsqueda termine, abre sus resultados para revisar las menciones encontradas.</p>
+        <table>
+          <thead><tr><th>ID</th><th>País</th><th>Workers</th><th>Estado</th><th>Inicio</th><th></th></tr></thead>
+          <tbody id="tabla-busquedas"><tr><td colspan="6" class="vacio">Sin búsquedas aún</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- RF9 -->
+    <section class="vista" id="vista-resultados">
+      <h1>Revisar resultados</h1>
+      <p class="subtitulo">Consulta los documentos encontrados, filtra por identidad o clasificación y abre la fuente original.</p>
+
+      <div class="selector-persona">
+        <select id="select-busqueda-resultados"></select>
+        <button class="secundario" id="btn-cargar-resultados">Mostrar resultados</button>
+      </div>
+
+      <div class="filtros">
+        <select id="filtro-clasificacion">
+          <option value="">Contexto: todos</option>
+          <option value="POSITIVO">Positivo</option>
+          <option value="NEUTRO">Neutro</option>
+          <option value="NEGATIVO">Negativo</option>
+          <option value="NO_DETERMINADO">No determinado</option>
+        </select>
+        <select id="filtro-identidad">
+          <option value="">Identidad: todas</option>
+          <option value="MISMA_PERSONA">Misma persona</option>
+          <option value="POSIBLE_COINCIDENCIA">Posible coincidencia</option>
+          <option value="PERSONA_DIFERENTE">Persona diferente</option>
+          <option value="NO_DETERMINADO">No determinado</option>
+        </select>
+        <select id="filtro-fuente">
+          <option value="">Fuente: todas</option>
+        </select>
+        <input type="date" id="filtro-fecha-desde" title="Fecha desde">
+        <input type="date" id="filtro-fecha-hasta" title="Fecha hasta">
+        <button class="secundario" id="btn-filtrar">Aplicar filtros</button>
+      </div>
+
+      <div class="leyenda" aria-label="Significado de las clasificaciones">
+        <span class="leyenda-item"><span class="badge POSITIVO">POSITIVO</span> evidencia favorable</span>
+        <span class="leyenda-item"><span class="badge NEUTRO">NEUTRO</span> mención sin carga clara</span>
+        <span class="leyenda-item"><span class="badge NEGATIVO">NEGATIVO</span> evidencia desfavorable</span>
+        <span class="leyenda-item"><span class="badge NO_DETERMINADO">NO DETERMINADO</span> falta evidencia</span>
+      </div>
+
+      <div class="panel">
+        <h2>Menciones encontradas</h2>
+        <p class="ayuda">La clasificación describe el contexto de la persona en cada documento; no es una sentencia definitiva.</p>
+        <div class="tabla-contenedor"><table>
+          <thead><tr><th>Título</th><th>Fuente</th><th>URL</th><th>País</th><th>Identidad</th><th>Clasificación</th><th>Fragmento</th></tr></thead>
+          <tbody id="tabla-documentos"><tr><td colspan="7" class="vacio">Selecciona una búsqueda y presiona "Mostrar resultados"</td></tr></tbody>
+        </table></div>
+      </div>
+
+      <div class="panel">
+        <h2>Contenido descartado</h2>
+        <p class="ayuda">Son páginas que no tenían suficiente relación con la persona consultada.</p>
+        <div class="tabla-contenedor"><table>
+          <thead><tr><th>URL</th><th>Motivo del descarte</th></tr></thead>
+          <tbody id="tabla-descartados"><tr><td colspan="2" class="vacio">—</td></tr></tbody>
+        </table></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const API_BASE = "http://localhost:8000";
+let intervaloResultados = null;
+
+// --- Navegacion entre vistas ---
+document.querySelectorAll("nav button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("activo"));
+    document.querySelectorAll("section.vista").forEach(s => s.classList.remove("activa"));
+    btn.classList.add("activo");
+    document.getElementById("vista-" + btn.dataset.vista).classList.add("activa");
+    if (btn.dataset.vista === "busquedas") cargarSelectPersonas();
+    if (btn.dataset.vista === "resultados") {
+      cargarSelectBusquedas();
+      clearInterval(intervaloResultados);
+      intervaloResultados = setInterval(actualizarResultadosEnCurso, 5000);
+    } else {
+      clearInterval(intervaloResultados);
+      intervaloResultados = null;
+    }
+  });
+});
+
+function mostrarMensaje(id, texto, tipo) {
+  const el = document.getElementById(id);
+  el.textContent = texto;
+  el.className = "mensaje " + tipo;
+  setTimeout(() => { el.className = "mensaje"; }, 4000);
+}
+
+// --- RF1: Personas ---
+async function cargarPersonas() {
+  const resp = await fetch(`${API_BASE}/personas`);
+  const personas = await resp.json();
+  const tbody = document.getElementById("tabla-personas");
+  if (!personas.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="vacio">Sin registros aún</td></tr>';
+    return;
+  }
+  tbody.innerHTML = personas.map(p => `
+    <tr><td>${p.nombre_completo}</td><td>${p.pais}</td><td>${p.ciudad || "—"}</td><td>${p.profesion_cargo || "—"}</td></tr>
+  `).join("");
+}
+
+document.getElementById("form-persona").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const datos = Object.fromEntries(new FormData(e.target));
+  try {
+    const resp = await fetch(`${API_BASE}/personas`, {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(datos)
+    });
+    if (!resp.ok) throw new Error((await resp.json()).detail || "Error al registrar");
+    e.target.reset();
+    mostrarMensaje("msg-persona", "Persona registrada correctamente.", "ok");
+    cargarPersonas();
+  } catch (err) {
+    mostrarMensaje("msg-persona", err.message, "error");
+  }
+});
+
+// --- RF2: Fuentes ---
+async function cargarFuentes() {
+  const resp = await fetch(`${API_BASE}/fuentes`);
+  const fuentes = await resp.json();
+  const tbody = document.getElementById("tabla-fuentes");
+  if (!fuentes.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="vacio">Sin fuentes aún</td></tr>';
+    return;
+  }
+  tbody.innerHTML = fuentes.map(f => `
+    <tr>
+      <td>${f.nombre}</td><td class="url">${f.url_inicial}</td><td>${f.pais}</td><td>${f.tipo}</td>
+      <td><span class="badge ${f.activa ? "activa" : "inactiva"}">${f.activa ? "Activa" : "Inactiva"}</span></td>
+      <td><button class="secundario" onclick="cambiarEstadoFuente('${f.id}', ${!f.activa})">${f.activa ? "Desactivar" : "Activar"}</button></td>
+    </tr>
+  `).join("");
+}
+
+async function cambiarEstadoFuente(id, nuevoEstado) {
+  await fetch(`${API_BASE}/fuentes/${id}/estado?activa=${nuevoEstado}`, { method: "PATCH" });
+  cargarFuentes();
+}
+
+document.getElementById("form-fuente").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const datos = Object.fromEntries(new FormData(e.target));
+  try {
+    const resp = await fetch(`${API_BASE}/fuentes`, {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(datos)
+    });
+    if (!resp.ok) throw new Error("Error al registrar la fuente");
+    e.target.reset();
+    mostrarMensaje("msg-fuente", "Fuente registrada correctamente.", "ok");
+    cargarFuentes();
+  } catch (err) {
+    mostrarMensaje("msg-fuente", err.message, "error");
+  }
+});
+
+// --- Busquedas ---
+async function cargarSelectPersonas() {
+  const resp = await fetch(`${API_BASE}/personas`);
+  const personas = await resp.json();
+  const select = document.getElementById("select-persona-busqueda");
+  select.innerHTML = personas.map(p => `<option value="${p.id}">${p.nombre_completo} (${p.pais})</option>`).join("");
+}
+
+async function cargarBusquedas() {
+  const resp = await fetch(`${API_BASE}/busquedas`);
+  const busquedas = await resp.json();
+  const tbody = document.getElementById("tabla-busquedas");
+  if (!busquedas.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="vacio">Sin búsquedas aún</td></tr>';
+    return;
+  }
+  tbody.innerHTML = busquedas.map(b => `
+    <tr>
+      <td class="url">${b.id.slice(0,8)}…</td><td>${b.pais}</td><td>${b.num_workers_usado}</td>
+      <td>${b.estado}</td><td>${new Date(b.fecha_inicio).toLocaleString()}</td>
+      <td><button class="secundario" onclick="verResultados('${b.id}')">Ver resultados</button></td>
+    </tr>
+  `).join("");
+}
+
+function verResultados(busquedaId) {
+  document.querySelector('nav button[data-vista="resultados"]').click();
+  setTimeout(() => {
+    document.getElementById("select-busqueda-resultados").value = busquedaId;
+    document.getElementById("btn-cargar-resultados").click();
+  }, 100);
+}
+
+document.getElementById("form-busqueda").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const datos = Object.fromEntries(new FormData(e.target));
+  datos.num_workers = parseInt(datos.num_workers);
+  try {
+    const resp = await fetch(`${API_BASE}/busquedas`, {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(datos)
+    });
+    if (!resp.ok) throw new Error((await resp.json()).detail || "Error al iniciar la búsqueda");
+    mostrarMensaje("msg-busqueda", "Búsqueda iniciada. El crawling corre en segundo plano.", "ok");
+    cargarBusquedas();
+  } catch (err) {
+    mostrarMensaje("msg-busqueda", err.message, "error");
+  }
+});
+
+// --- RF9: Resultados ---
+async function cargarSelectBusquedas() {
+  const resp = await fetch(`${API_BASE}/busquedas`);
+  const busquedas = await resp.json();
+  const select = document.getElementById("select-busqueda-resultados");
+  const seleccionada = select.value;
+  select.innerHTML = busquedas.map(b => `<option value="${b.id}">${b.id.slice(0,8)}… — ${b.pais} (${b.estado})</option>`).join("");
+  if (busquedas.some(b => b.id === seleccionada)) select.value = seleccionada;
+}
+
+async function actualizarResultadosEnCurso() {
+  const select = document.getElementById("select-busqueda-resultados");
+  if (!select.value || !document.getElementById("vista-resultados").classList.contains("activa")) return;
+  await cargarSelectBusquedas();
+  await cargarResultados();
+}
+
+function mostrarClasificacion(valor) {
+  const clasificacion = valor || "NO_DETERMINADO";
+  const texto = clasificacion.replace("_", " ");
+  return `<span class="badge ${clasificacion}">${texto}</span>`;
+}
+
+async function cargarResultados() {
+  const busquedaId = document.getElementById("select-busqueda-resultados").value;
+  if (!busquedaId) return;
+
+  const params = new URLSearchParams();
+  const clasif = document.getElementById("filtro-clasificacion").value;
+  const identidad = document.getElementById("filtro-identidad").value;
+  const fuente = document.getElementById("filtro-fuente").value;
+  const fecha = document.getElementById("filtro-fecha-desde").value;
+  const fechaHasta = document.getElementById("filtro-fecha-hasta").value;
+  if (clasif) params.set("clasificacion", clasif);
+  if (identidad) params.set("estado_identidad", identidad);
+  if (fuente) params.set("fuente_id", fuente);
+  if (fecha) params.set("fecha_desde", fecha);
+  if (fechaHasta) params.set("fecha_hasta", fechaHasta);
+
+  const [docsResp, descartadosResp] = await Promise.all([
+    fetch(`${API_BASE}/resultados/${busquedaId}/documentos?${params}`),
+    fetch(`${API_BASE}/resultados/${busquedaId}/descartados`),
+  ]);
+  const documentos = await docsResp.json();
+  const descartados = await descartadosResp.json();
+
+  const tbodyDocs = document.getElementById("tabla-documentos");
+  tbodyDocs.innerHTML = documentos.length ? documentos.map(d => `
+    <tr>
+      <td>${d.titulo || "(sin título)"}</td>
+      <td>${d.fuente_nombre || "(sin fuente)"}</td>
+      <td class="url"><a href="${d.url}" target="_blank" rel="noopener">${d.url}</a></td>
+      <td>${d.pais || "—"}</td>
+      <td>${d.estado_identidad || "NO_DETERMINADO"}</td>
+      <td>${mostrarClasificacion(d.clasificacion)}</td>
+      <td>${(d.contenido_texto || "").slice(0, 120)}…</td>
+    </tr>
+  `).join("") : '<tr><td colspan="7" class="vacio">Sin documentos con estos filtros</td></tr>';
+
+  const fuentes = [...new Map(documentos.filter(d => d.fuente_id).map(d => [d.fuente_id, d.fuente_nombre])).entries()];
+  const filtroFuente = document.getElementById("filtro-fuente");
+  const fuenteSeleccionada = filtroFuente.value;
+  filtroFuente.innerHTML = '<option value="">Fuente: todas</option>' + fuentes.map(([id, nombre]) => `<option value="${id}">${nombre}</option>`).join("");
+  filtroFuente.value = fuenteSeleccionada;
+
+  const tbodyDescartados = document.getElementById("tabla-descartados");
+  tbodyDescartados.innerHTML = descartados.length ? descartados.map(d => `
+    <tr><td class="url">${d.url}</td><td>${d.motivo}</td></tr>
+  `).join("") : '<tr><td colspan="2" class="vacio">Sin descartados</td></tr>';
+}
+
+document.getElementById("btn-cargar-resultados").addEventListener("click", cargarResultados);
+document.getElementById("btn-filtrar").addEventListener("click", cargarResultados);
+document.getElementById("select-busqueda-resultados").addEventListener("change", cargarResultados);
+
+// Carga inicial
+cargarPersonas();
+cargarFuentes();
+</script>
+</body>
+</html>

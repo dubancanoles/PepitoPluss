@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Base de datos local
+*.db
+*.sqlite3
+
+# Entorno
+.env
+
+# Editor
+.vscode/
+.idea/
+
+# Node (frontend)
+node_modules/
+dist/
+build/
